@@ -3,6 +3,7 @@ const { WebhookClient } = require('dialogflow-fulfillment')
 const app = express()
 const fetch = require('node-fetch')
 const base64 = require('base-64')
+const { FALSE } = require('node-sass')
 
 let username = "";
 let password = "";
@@ -80,7 +81,7 @@ app.post('/', express.json(), (req, res) => {
     if (!isUser) {
       agent.add(text); // say message if not computer message
     }
-    
+
     if (isLoggedIn()) {
       const body = JSON.stringify({
         date: new Date(),
@@ -120,13 +121,64 @@ app.post('/', express.json(), (req, res) => {
     return serverResponse;
   }
 
+  async function viewCart() {
+    if (!isLoggedIn()) {
+      addMessage("Please login to view your cart.", false);
+      return;
+    }
 
-  let intentMap = new Map()
+    let request = {
+      method: 'GET',
+      headers: {'Content-Type': 'application/json',
+                'x-access-token': token,
+      },
+      redirect: 'follow'
+    }
+  
+    const serverReturn = await fetch(ENDPOINT_URL + '/application/products', request);
+    const serverResponse = await serverReturn.json();
+
+    const cart = serverResponse.products;
+
+    if (cart.length == 0) {
+      addMessage(agent.query, true);
+      addMessage("Your cart is currently empty.", false);
+    } else {
+      let total = 0;
+      let cartQuantity = {};
+      for (let key in cart) {
+        total += cart[key].price;
+        if (cartQuantity.hasOwnProperty(cart[key].name)) {
+          cartQuantity[cart[key].name] += 1;
+        } else {
+          cartQuantity[cart[key].name] = 1;
+        }
+      }
+
+      let cartStr = "";
+      for (let key in cartQuantity) {
+        if (cartQuantity[key] == 1) {
+          cartStr = cartStr + '1 ' + key + ', ';
+        } else {
+          cartStr = cartStr + cartQuantity[key] + ' ' + key + 's, '  
+        }
+      }
+
+      cartStr = cartStr.substring(0, cartStr.length - 2); // get rid of last comma and space
+
+      addMessage(agent.query, true);
+      addMessage(`Your cart has ${cart.length} items in it. It contains ${cartStr}. The total is $${total}.`, false);
+    }
+
+    return serverResponse;
+  }
+
+
+  let intentMap = new Map();
   intentMap.set('Default Welcome Intent', welcome);
-
-
-  // You will need to declare this `Login` content in DialogFlow to make this work
   intentMap.set('login', login);
+  intentMap.set('View Cart', viewCart);
+
 
   agent.handleRequest(intentMap);
 });
