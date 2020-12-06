@@ -63,7 +63,7 @@ app.post('/', express.json(), (req, res) => {
       username = agent.parameters.username;
       // You need to set this from password entity that you declare in DialogFlow
       password = agent.parameters.password;
-      await getToken()
+      await getToken();
 
       //agent.add(token)
 
@@ -72,7 +72,7 @@ app.post('/', express.json(), (req, res) => {
       } else {
         await deleteMessages();
         addMessage("Welcome back " + username + "!", false);
-        addMessage("What are you looking for today?", false);
+        await addMessage("What are you looking for today?", false);
       }
     }
   }
@@ -139,12 +139,12 @@ app.post('/', express.json(), (req, res) => {
     const serverResponse = await serverReturn.json();
 
     const cart = serverResponse.products;
+    console.log(cart);
 
     if (cart.length == 0) {
-      addMessage(agent.query, true);
+      await addMessage(agent.query, true);
       addMessage("Your cart is currently empty.", false);
     } else {
-      let total = 0;
       let cartStr = "";
       let totalCost = 0;
       let totalItems = 0;
@@ -152,7 +152,7 @@ app.post('/', express.json(), (req, res) => {
         totalCost += cart[0].price;
         totalItems += cart[0].count;
 
-        if (cart[i].count == 1) {
+        if (cart.count == 1) {
           cartStr = cart[0].count + ' ' + cart[0].name;
         } else {
           cartStr = cart[0].count + ' ' + cart[0].name + 's';
@@ -186,12 +186,65 @@ app.post('/', express.json(), (req, res) => {
     return serverResponse;
   }
 
+  async function checkout() {
+    if (!isLoggedIn()) {
+      addMessage("Please login first.", false);
+      return;
+    }
+
+    let request = {
+      method: 'GET',
+      headers: {'Content-Type': 'application/json',
+                'x-access-token': token,
+      },
+      redirect: 'follow'
+    }
+  
+    const serverReturn = await fetch(ENDPOINT_URL + '/application/products', request);
+    const serverResponse = await serverReturn.json();
+
+    const cart = serverResponse.products;
+    await addMessage(agent.query, true);
+
+    if (cart.length == 0) {
+      addMessage('Unable to checkout. Your cart is currently empty.', false);
+    } else {
+      addMessage('Do you want to review your cart before checking out?', false);
+    }
+  }
+  
+  // Review cart
+  async function checkoutYes() {
+    await viewCart();
+  }
+
+  async function checkoutNo() {
+    await addMessage(agent.query, true);
+
+    const request = {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-access-token': token,
+      },
+      redirect: 'follow'
+    }
+
+    const serverReturn = await fetch(ENDPOINT_URL + '/application/products', request);
+    const serverResponse = await serverReturn.json();
+    addMessage('Your order has been confirmed. Thank you for shopping at WiscShop!', false);
+
+    //return serverResponse;
+  }
+
 
   let intentMap = new Map();
   intentMap.set('Default Welcome Intent', welcome);
   intentMap.set('login', login);
   intentMap.set('View Cart', viewCart);
-
+  intentMap.set('checkout', checkout);
+  intentMap.set('checkout - yes', checkoutYes);
+  intentMap.set('checkout - no', checkoutNo);
 
   agent.handleRequest(intentMap);
 });
