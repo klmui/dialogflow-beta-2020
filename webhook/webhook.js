@@ -145,29 +145,42 @@ app.post('/', express.json(), (req, res) => {
       addMessage("Your cart is currently empty.", false);
     } else {
       let total = 0;
-      let cartQuantity = {};
-      for (let key in cart) {
-        total += cart[key].price;
-        if (cartQuantity.hasOwnProperty(cart[key].name)) {
-          cartQuantity[cart[key].name] += 1;
-        } else {
-          cartQuantity[cart[key].name] = 1;
-        }
-      }
-
       let cartStr = "";
-      for (let key in cartQuantity) {
-        if (cartQuantity[key] == 1) {
-          cartStr = cartStr + '1 ' + key + ', ';
+      let totalCost = 0;
+      let totalItems = 0;
+      if (cart.length == 1) {
+        totalCost += cart[0].price;
+        totalItems += cart[0].count;
+
+        if (cart[i].count == 1) {
+          cartStr = cart[0].count + ' ' + cart[0].name;
         } else {
-          cartStr = cartStr + cartQuantity[key] + ' ' + key + 's, '  
+          cartStr = cart[0].count + ' ' + cart[0].name + 's';
+        }
+      } else {
+        for (let i = 0; i < cart.length; i++) {
+          totalCost += (cart[i].price * cart[i].count);
+          totalItems += cart[i].count;
+
+          if (i == cart.length - 1) {
+            // last item
+            if (cart[i].count == 1) {
+              cartStr = cartStr + 'and ' + cart[i].count + ' ' + cart[i].name;
+            } else {
+              cartStr = cartStr + 'and ' +  cart[i].count + ' ' + cart[i].name + 's';
+            }
+          } else {
+            if (cart[i].count == 1) {
+              cartStr = cartStr +  cart[i].count + ' ' + cart[i].name + ', ';
+            } else {
+              cartStr = cartStr +  cart[i].count + ' ' + cart[i].name + 's, ';
+            }
+          }
         }
       }
 
-      cartStr = cartStr.substring(0, cartStr.length - 2); // get rid of last comma and space
-
-      addMessage(agent.query, true);
-      addMessage(`Your cart has ${cart.length} items in it. It contains ${cartStr}. The total is $${total}.`, false);
+      await addMessage(agent.query, true);
+      addMessage(`Your cart has ${totalItems} items in it. It contains ${cartStr}. The total is $${totalCost}.`, false);
     }
 
     return serverResponse;
